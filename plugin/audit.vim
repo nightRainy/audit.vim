@@ -205,3 +205,28 @@ vnoremap <leader>ff :call DoExecute("FZF -1 -q", VisualSelectedText(), 0)<cr>
 nnoremap <leader>r :call DoExecute("RG", expand("<cword>"), 0)<cr>
 vnoremap <leader>r :call DoExecute("RG", VisualSelectedText(), 2)<cr>
 """ }}}
+
+" OpenCode AI 集成 --- {{{
+" OpenCode AI 编程助手的快捷键和命令由 lua/audit/opencode.lua 配置
+" 默认快捷键:
+"   <C-a>  - 询问 AI（普通模式和可视模式）
+"   <C-x>  - 选择执行动作
+"   <C-.>  - 切换 opencode 终端
+"
+" 可用命令:
+"   :OpencodeExplainDiagnostics  - 解释诊断信息
+"   :OpencodeFix                 - 修复诊断问题
+"   :OpencodeExplain             - 解释代码
+"   :OpencodeReview              - 代码审查
+"   :OpencodeOptimize            - 优化代码
+"   :OpencodeDocument            - 添加文档
+"   :OpencodeTest                - 添加测试
+"   :OpencodeAsk [prompt]        - 自由提问
+"
+" 在 init.lua 中启用 OpenCode:
+"   local opencode_config = require('audit.opencode')
+"   if opencode_config.check_cli() then
+"     opencode_config.setup()
+"     opencode_config.setup_commands()
+"   end
+""" }}}

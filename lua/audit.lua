@@ -65,6 +65,30 @@ function M.ensure_special_buffers_modifiable()
   })
 end
 
+-- 设置 OpenCode AI（可选）
+function M.setup_opencode(opencode_opts)
+  local ok, opencode_config = pcall(require, 'audit.opencode')
+  if not ok then
+    vim.notify("audit.opencode module not found", vim.log.levels.WARN)
+    return false
+  end
+
+  -- 检查 CLI 是否安装
+  if not opencode_config.check_cli() then
+    return false
+  end
+
+  -- 设置 OpenCode
+  local success = opencode_config.setup(opencode_opts or {})
+  if success then
+    -- 设置内置命令
+    opencode_config.setup_commands()
+    vim.notify("OpenCode AI 已集成到 audit.nvim", vim.log.levels.INFO)
+  end
+
+  return success
+end
+
 -- 初始化函数
 function M.setup(opts)
   opts = opts or {}
@@ -84,6 +108,11 @@ function M.setup(opts)
     if old_on_attach then
       old_on_attach(client, bufnr)
     end
+  end
+
+  -- 可选：设置 OpenCode AI
+  if opts.opencode then
+    M.setup_opencode(opts.opencode)
   end
 
   return opts
