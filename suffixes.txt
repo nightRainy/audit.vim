@@ -28,6 +28,9 @@
 .inc
 .ini
 .java
+.kt
+.kts
+.gradle
 .js
 .json
 .jsp

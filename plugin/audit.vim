@@ -1,5 +1,17 @@
-" light-weight code audit tools
+" =============================================================================
+" audit.nvim - 轻量级代码审计工具（仅支持 Neovim）
+" 需要: Neovim 0.5+
+" =============================================================================
 
+" Neovim 版本检查
+if !has('nvim')
+  echohl ErrorMsg
+  echo "audit.vim: 此版本仅支持 Neovim。请使用旧版本或安装 Neovim。"
+  echohl None
+  finish
+endif
+
+" 辅助函数 --- {{{
 function! VisualSelectedText()
   let l:vm = visualmode()
   let l:bak = @@
@@ -28,8 +40,9 @@ function! DoExecute(prefix, text, escape)
   endif
   execute a:prefix . " " . l:text
 endfunction
+" }}}
 
-" commom options --- {{{
+" 通用选项 --- {{{
 nnoremap [[ [{
 nnoremap ]] ]}
 
@@ -75,92 +88,96 @@ endif
 " }}}
 
 " asyncrun.vim shortcuts --- {{{
-nnoremap <leader>q :call asyncrun#quickfix_toggle(12)<CR>
-command! -nargs=+ -complete=tag Grep AsyncRun -cwd=<root> rg "-n" <args>
-if has('win32') || has('win64')
-  nnoremap <silent><F2> :AsyncRun! -cwd=<root> findstr /n /s /C:"<C-R><C-W>"
-        \ "\%CD\%\*.h" "\%CD\%\*.c*" <cr>
-else
-  " noremap <silent><F2> :AsyncRun! -cwd=<root> grep -n -s -R <C-R><C-W>
-  "         \ --include='*.h' --include='*.c*' '<root>' <cr>
-  " omit search path
-  nnoremap <silent><F2> :AsyncRun! -errorformat=\%f:\%l:\%c:\%m -cwd=<root> rg --vimgrep -w <C-R><C-W> <cr>
-  vnoremap <silent><F2> :call DoExecute("AsyncRun! -errorformat=\\%f:\\%l:\\%c:\\%m -cwd=<root> rg --vimgrep ", VisualSelectedText(), 3)<cr>
+" 检查 AsyncRun 是否可用
+if exists(':AsyncRun')
+  nnoremap <leader>q :call asyncrun#quickfix_toggle(12)<CR>
+  command! -nargs=+ -complete=tag Grep AsyncRun -cwd=<root> rg "-n" <args>
 
-  " search for method definition
-  nnoremap <silent><F3> :AsyncRun! -errorformat=\%f:\%l:\%c:\%m -cwd=<root> rg --vimgrep " <C-R><C-W>\(.*\) .*\{" <cr>
+  " Find 命令：使用 find 查找文件
+  " 用法: :Find -name "*.java" 或 :Find -iname "*main*"
+  command! -nargs=+ -complete=file Find AsyncRun -errorformat=\%f -cwd=<root> find . -type f <args>
+
+  " FindName 命令：简化的按文件名查找
+  " 用法: :FindName MainActivity.java
+  command! -nargs=1 -complete=file FindName AsyncRun -errorformat=\%f -cwd=<root> find . -type f -name <args>
+
+  " FindPattern 命令：使用通配符查找（不区分大小写）
+  " 用法: :FindPattern "*activity*"
+  command! -nargs=1 FindPattern AsyncRun -errorformat=\%f -cwd=<root> find . -type f -iname <args>
+
+  if has('win32') || has('win64')
+    nnoremap <silent><F2> :AsyncRun! -cwd=<root> findstr /n /s /C:"<C-R><C-W>"
+          \ "\%CD\%\*.h" "\%CD\%\*.c*" <cr>
+  else
+    " 使用 AsyncRun 执行异步搜索
+    nnoremap <silent><F2> :AsyncRun! -errorformat=\%f:\%l:\%c:\%m -cwd=<root> rg --vimgrep -w <C-R><C-W> <cr>
+    vnoremap <silent><F2> :call DoExecute("AsyncRun! -errorformat=\\%f:\\%l:\\%c:\\%m -cwd=<root> rg --vimgrep ", VisualSelectedText(), 3)<cr>
+    " 搜索方法定义
+    nnoremap <silent><F3> :AsyncRun! -errorformat=\%f:\%l:\%c:\%m -cwd=<root> rg --vimgrep " <C-R><C-W>\(.*\) .*\{" <cr>
+  endif
+else
+  " AsyncRun 不可用，使用同步命令作为回退
+  echohl WarningMsg
+  echo "audit.vim: AsyncRun 插件未安装，使用同步搜索（可能会阻塞）"
+  echohl None
+
+  nnoremap <leader>q :copen 12<CR>
+  command! -nargs=+ -complete=tag Grep execute 'silent grep! -n' <q-args> '.' | copen
+
+  if has('win32') || has('win64')
+    nnoremap <silent><F2> :execute 'silent grep! -n -r' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
+  else
+    " 使用同步 grep 命令
+    nnoremap <silent><F2> :execute 'silent grep! --vimgrep -w' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
+    vnoremap <silent><F2> :execute 'silent grep! --vimgrep' shellescape(VisualSelectedText()) '.'<CR>:copen<CR>
+    " 搜索方法定义
+    nnoremap <silent><F3> :execute 'silent grep! --vimgrep' shellescape(expand('<cword>') . '(.*) .*{') '.'<CR>:copen<CR>
+  endif
+
+  " 设置 grepprg 为 ripgrep
+  if executable('rg')
+    set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case
+    set grepformat=%f:%l:%c:%m
+  endif
 endif
 """ }}}
 
-" ctags/taglist.vim shortcuts --- {{{
+" ctags/aerial.nvim 配置 --- {{{
 if $AVIM_TAGS != ""
   set tags=$AVIM_TAGS
 else
-  set tags=.tags; " upward search for ctags file
+  set tags=.tags; " 向上搜索 ctags 文件
 endif
-" let Tlist_File_Fold_Auto_Close = 1
-let Tlist_Show_One_File = 1
-let Tlist_Exit_OnlyWindow = 1
-nnoremap <leader>o :TlistToggle<CR>
+
+" 使用 aerial.nvim 作为符号查看器
+" 插件地址: https://github.com/stevearc/aerial.nvim
+" 需要在 init.lua 中配置 aerial.setup()
+if exists(':AerialToggle')
+  nnoremap <leader>o :AerialToggle<CR>
+else
+  nnoremap <leader>o :echohl WarningMsg \| echo "请安装 aerial.nvim" \| echohl None<CR>
+endif
 " }}}
 
-" cscope shortcuts --- {{{
-if has("cscope")
-  set cscopetag           " use cscope tag
-  set cscopetagorder=1    " cstag search ctags first
-  set cscopeverbose       " verbose output
-  " set cscoperelative
-  set cscopequickfix=s-,c-,d-,i-,t-,e-,a-,g-
-  set cspc=3
-endif
+" LSP 符号导航快捷键（替代 cscope） --- {{{
+" 这些快捷键使用 Neovim 内置 LSP
+" 需要在 init.lua 中设置 nvim-lspconfig
 
-function CScopeFind(key, val)
-  try
-    execute "cscope find " . a:key . " " . a:val
-  catch
-    echo "Not Found: " . a:key . " " . a:val
-    return 1
-  endtry
-  " jump back
-  if len(getqflist()) > 1
-    execute "normal! \<c-o>"
-  endif
-  call asyncrun#quickfix_toggle(12, 1)
-endfunction
+" 符号导航
+nnoremap <leader>fs <cmd>lua vim.lsp.buf.references()<CR>
+nnoremap <leader>fg <cmd>lua vim.lsp.buf.definition()<CR>
+nnoremap <leader>fc <cmd>lua vim.lsp.buf.incoming_calls()<CR>
+nnoremap <leader>ft <cmd>lua vim.lsp.buf.type_definition()<CR>
+nnoremap <leader>fe :Grep <C-R>=expand("<cword>")<CR><CR>
+nnoremap <leader>fd <cmd>lua vim.lsp.buf.outgoing_calls()<CR>
 
-if $AVIM_CSDB != ""
-  silent cs add $AVIM_CSDB
-  " The following maps all invoke one of the following cscope search types:
-  "
-  "   's'   symbol: find all references to the token under cursor
-  "   'g'   global: find global definition(s) of the token under cursor
-  "   'c'   calls:  find all calls to the function name under cursor
-  "   't'   text:   find all instances of the text under cursor
-  "   'e'   egrep:  egrep search for the word under cursor
-  "   'f'   file:   open the filename under cursor
-  "   'i'   includes: find files that include the filename under cursor
-  "   'd'   called: find functions that function under cursor calls
-  " nnoremap <leader>fs :cscope find s <C-R>=expand("<cword>")<CR><CR>
-  " nnoremap <leader>fg :cscope find g <C-R>=expand("<cword>")<CR><CR>
-  " nnoremap <leader>fc :cscope find c <C-R>=expand("<cword>")<CR><CR>
-  " nnoremap <leader>ft :cscope find t <C-R>=expand("<cword>")<CR><CR>
-  " nnoremap <leader>fe :cscope find e <C-R>=expand("<cword>")<CR><CR>
-  " nnoremap <leader>ff :cscope find f <C-R>=expand("<cfile>")<CR><CR>
-  " nnoremap <leader>fi :cscope find i ^<C-R>=expand("<cfile>")<CR>$<CR>
-  " nnoremap <leader>fd :cscope find d <C-R>=expand("<cword>")<CR><CR>
-  nnoremap <leader>fs :call CScopeFind("s", expand("<cword>"))<CR>
-  nnoremap <leader>fg :call CScopeFind("g", expand("<cword>"))<CR>
-  nnoremap <leader>fc :call CScopeFind("c", expand("<cword>"))<CR>
-  if $AVIM_TAGS != ""
-    nnoremap <leader>ft :cstag <c-r>=expand('<cword>')<CR><CR>
-  else
-    nnoremap <leader>ft :call CScopeFind("t", expand("<cword>"))<CR>
-  endif
-  nnoremap <leader>fe :call CScopeFind("e", expand("<cword>"))<CR>
-  " nnoremap <leader>ff :call CScopeFind("f", expand("<cfile>"))<CR>
-  nnoremap <leader>fd :call CScopeFind("d", expand("<cword>"))<CR>
-endif
-
+" 额外的 LSP 功能
+nnoremap <leader>h <cmd>lua vim.lsp.buf.hover()<CR>
+nnoremap <leader>rn <cmd>lua vim.lsp.buf.rename()<CR>
+nnoremap <leader>ca <cmd>lua vim.lsp.buf.code_action()<CR>
+nnoremap <leader>di <cmd>lua vim.diagnostic.open_float()<CR>
+nnoremap [d <cmd>lua vim.diagnostic.goto_prev()<CR>
+nnoremap ]d <cmd>lua vim.diagnostic.goto_next()<CR>
 " }}}
 
 " fzf.vim shortcuts --- {{{

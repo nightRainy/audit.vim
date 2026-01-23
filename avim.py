@@ -44,7 +44,7 @@ def _filesz(filename):
 class Project(object):
     OUT_LIST = "files"
     OUT_TAGS = "tags"
-    OUT_CSDB = "cscope"
+    # OUT_CSDB = "cscope"  # 移除 cscope 支持，改用 LSP
     OUT_BOOKMARK = "bookmark"
 
     def __init__(self, src, data=None):
@@ -84,9 +84,10 @@ class Project(object):
     def f_tags(self):
         return os.path.join(self.data, self.OUT_TAGS)
 
-    @property
-    def f_csdb(self):
-        return os.path.join(self.data, self.OUT_CSDB)
+    # 移除 cscope 数据库支持
+    # @property
+    # def f_csdb(self):
+    #     return os.path.join(self.data, self.OUT_CSDB)
 
     def collect_files(self, suffixes, excludes=None):
         excludes = [Path(e).absolute() for e in excludes] if excludes else []
@@ -126,25 +127,24 @@ class Project(object):
         cmd = ['ctags', '--fields=+l', '--links=no', '-L', self.f_list, '-f', self.f_tags]
         sb.call(cmd)
 
-    def create_cscope(self):
-        log("adding cscope ...")
-        if os.path.exists(self.f_csdb):
-            os.remove(self.f_csdb)
-        buf = ''
-        with open(self.f_list, 'r') as f:
-            for line in f:
-                if ' ' in line:
-                    line = '"%s"\n' % line[:-1]
-                buf += line
-        cmd = ['cscope', '-b', '-i', "-", '-f', self.f_csdb]
-        # if self.kernel_mode:
-        #     cmd.append('-k')
-        try:
-            p = sb.Popen(cmd, stdin=sb.PIPE)
-            p.communicate(input=buf.encode())
-        except KeyboardInterrupt:
-            log("user interrupt, cleanning...")
-            # TODO: remove n.cscope file
+    # 移除 cscope 支持，改用 LSP
+    # def create_cscope(self):
+    #     log("adding cscope ...")
+    #     if os.path.exists(self.f_csdb):
+    #         os.remove(self.f_csdb)
+    #     buf = ''
+    #     with open(self.f_list, 'r') as f:
+    #         for line in f:
+    #             if ' ' in line:
+    #                 line = '"%s"\n' % line[:-1]
+    #             buf += line
+    #     cmd = ['cscope', '-b', '-i', "-", '-f', self.f_csdb]
+    #     try:
+    #         p = sb.Popen(cmd, stdin=sb.PIPE)
+    #         p.communicate(input=buf.encode())
+    #     except KeyboardInterrupt:
+    #         log("user interrupt, cleanning...")
+    #         # TODO: remove n.cscope file
 
 
 class AVIM:
@@ -218,8 +218,8 @@ class AVIM:
                 return
             # clear old session first
             self.do_rm(proj.src, sessions[proj.src])
-        # create session
-        proj.create(self.suffixes, args.excludes, args.tag, args.cscope)
+        # create session (只创建 tags，不创建 cscope)
+        proj.create(self.suffixes, args.excludes, args.tag, cscope=False)
         sessions = self.sessions
         sessions[proj.src] = proj.data
         self.save_sessions(sessions)
@@ -252,7 +252,8 @@ class AVIM:
         if not sessions:
             log("No data")
             return
-        fields = ['location', 'timestamp', 'files', 'ctags', 'cscope', 'bookmark']
+        # 移除 cscope 列
+        fields = ['location', 'timestamp', 'files', 'ctags', 'bookmark']
         t = Table(*fields)
         rows = []
         for src, data in sessions.items():
@@ -271,7 +272,7 @@ class AVIM:
                 timestamp,
                 _num_lines(proj.f_list),
                 _filesz(proj.f_tags),
-                _filesz(proj.f_csdb),
+                # _filesz(proj.f_csdb),  # 移除 cscope
                 self._read_bookmark(proj.f_bookmark),
             ])
         idx = fields.index(args.sortby)
@@ -282,9 +283,11 @@ class AVIM:
     def do_open(self, args):
         sessions = self.sessions
         env = os.environ.copy()
-        cmd = ['vim', '-R', '-M', '-n']
-        if args.gui:
-            cmd.append('-g')
+        # 使用 nvim 而不是 vim
+        cmd = ['nvim', '-R', '-M']
+        # 移除 gvim 支持（nvim 不使用 -g 参数）
+        # if args.gui:
+        #     cmd.append('-g')
         if args.tag:
             cmd.extend(['-t', args.tag])
         if args.file:
@@ -303,10 +306,11 @@ class AVIM:
         else:
             env['AVIM_SRC'] = proj.src
             env['AVIM_BOOKMARK'] = proj.f_bookmark
-            if os.path.exists(proj.f_csdb):
-                env['AVIM_CSDB'] = proj.f_csdb
+            # 移除 cscope 支持
+            # if os.path.exists(proj.f_csdb):
+            #     env['AVIM_CSDB'] = proj.f_csdb
             if os.path.exists(proj.f_tags):
-                # use envrioment to make "vim -t" work
+                # use environment to make "nvim -t" work
                 env['AVIM_TAGS'] = proj.f_tags
         if args.extra_args:
             cmd.extend(args.extra_args)
@@ -317,11 +321,12 @@ def main():
     subparsers = parser.add_subparsers(dest='action', help='sub actions')
 
     p_add = subparsers.add_parser('make', help='create new audit session from current directory')
-    p_add.add_argument('src', nargs='?', default='.', help='project root direcotry to make')
+    p_add.add_argument('src', nargs='?', default='.', help='project root directory to make')
     p_add.add_argument('-t', dest='tag', action='store_true', help='create tag')
-    p_add.add_argument('-c', dest='cscope', action='store_true', help='create cscope')
-    p_add.add_argument('-f', dest='force', action='store_true', help='force overrite')
-    p_add.add_argument('-e', dest='excludes', nargs='+', help='exclude pathes')
+    # 移除 cscope 支持
+    # p_add.add_argument('-c', dest='cscope', action='store_true', help='create cscope')
+    p_add.add_argument('-f', dest='force', action='store_true', help='force overwrite')
+    p_add.add_argument('-e', dest='excludes', nargs='+', help='exclude paths')
 
     p_rm = subparsers.add_parser('rm', help='remove audit session')
     p_rm.add_argument('-g', '--glob', action='store_true', help='enable glob match')
@@ -334,11 +339,12 @@ def main():
     p_info.add_argument("-s", dest="sortby", choices=["location", "files", "timestamp"],
             default="timestamp", help="sort results by column")
 
-    p_open = subparsers.add_parser('open', help='vim wrapper to open files')
+    p_open = subparsers.add_parser('open', help='nvim wrapper to open files')
     p_open.add_argument('file', nargs="?", help='filename to open')
     p_open.add_argument('-t', dest='tag', help='open tag')
-    p_open.add_argument('-g', dest='gui', action='store_true', help='use gvim instead of vim')
-    p_open.add_argument("extra_args", nargs="*", help="extra arguments that pass to vim")
+    # 移除 gvim 支持
+    # p_open.add_argument('-g', dest='gui', action='store_true', help='use gvim instead of vim')
+    p_open.add_argument("extra_args", nargs="*", help="extra arguments that pass to nvim")
 
     args = parser.parse_args()
     avim = AVIM()
