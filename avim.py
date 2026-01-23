@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""audit.vim - Lightweight code audit system with Neovim
+
+A tool for managing code audit sessions with ctags, bookmarks, and LSP integration.
+Supports project-based sessions with quick file navigation and symbol lookup.
+"""
 import os
 import time
 import json
@@ -9,146 +14,133 @@ import fnmatch
 import ast
 from datetime import datetime
 from pathlib import Path
+from typing import Optional, List, Dict, Set
 from rich.console import Console
 from rich.table import Table
 
 WORKSPACE = os.path.expanduser("~/.audit.vim")
 CONN = Console()
 
-def log(msg, *args, **kwargs):
+
+def log(msg: str, *args, **kwargs) -> None:
+    """Print log message with [+] prefix."""
     print('[+]', msg, *args, **kwargs)
 
-def sizeof_fmt(num, suffix="B"):
+
+def sizeof_fmt(num: float, suffix: str = "B") -> str:
+    """Convert bytes to human-readable format."""
     for unit in ["", "K", "M", "G", "T", "P", "E", "Z"]:
         if abs(num) < 1024.0:
             return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
     return f"{num:.1f}Yi{suffix}"
 
-def _num_lines(filename):
-    count = 0
+
+def _num_lines(filename: str) -> int:
+    """Count number of lines in a file."""
     if not os.path.exists(filename):
-        return count
-    with open(filename, 'r') as f:
-        for line in f:
-            count += 1
-    return count
+        return 0
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
+        return sum(1 for _ in f)
 
 
-def _filesz(filename):
+def _filesz(filename: str) -> str:
+    """Get human-readable file size."""
     if not os.path.exists(filename):
         return '-'
     return sizeof_fmt(os.stat(filename).st_size)
 
 
-class Project(object):
+class Project:
+    """Represents an audit project with tags and bookmarks."""
+
     OUT_LIST = "files"
     OUT_TAGS = "tags"
-    # OUT_CSDB = "cscope"  # 移除 cscope 支持，改用 LSP
     OUT_BOOKMARK = "bookmark"
 
-    def __init__(self, src, data=None):
-        # full path
+    def __init__(self, src: str, data: Optional[str] = None):
+        """Initialize project with source directory and optional data directory."""
         self.src = os.path.abspath(src)
         self.data = data
 
-    def create(self, suffixes, excludes=None, tag=True, cscope=True):
+    def create(self, suffixes: List[str], excludes: Optional[List[str]] = None, tag: bool = True) -> None:
+        """Create project session with file collection and tags."""
         if self.data is None:
-            # create new data dir
             self.data = os.path.join(WORKSPACE, str(int(time.time())))
         if not os.path.exists(self.data):
             os.mkdir(self.data)
         self.collect_files(suffixes, excludes)
         if tag:
             self.create_tags()
-        if cscope:
-            self.create_cscope()
 
-    def remove(self):
+    def remove(self) -> None:
+        """Remove project data directory."""
         if os.path.exists(self.data):
             shutil.rmtree(self.data)
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> int:
+        """Get project creation timestamp."""
         return int(os.path.basename(self.data))
 
     @property
-    def f_bookmark(self):
+    def f_bookmark(self) -> str:
+        """Get bookmark file path."""
         return os.path.join(self.data, self.OUT_BOOKMARK)
 
     @property
-    def f_list(self):
+    def f_list(self) -> str:
+        """Get file list path."""
         return os.path.join(self.data, self.OUT_LIST)
 
     @property
-    def f_tags(self):
+    def f_tags(self) -> str:
+        """Get tags file path."""
         return os.path.join(self.data, self.OUT_TAGS)
 
-    # 移除 cscope 数据库支持
-    # @property
-    # def f_csdb(self):
-    #     return os.path.join(self.data, self.OUT_CSDB)
-
-    def collect_files(self, suffixes, excludes=None):
-        excludes = [Path(e).absolute() for e in excludes] if excludes else []
+    def collect_files(self, suffixes: List[str], excludes: Optional[List[str]] = None) -> None:
+        """Collect all files matching the given suffixes."""
+        exclude_paths = [Path(e).absolute() for e in excludes] if excludes else []
         log("collecting files ...")
-        out = []
+
+        files = []
         num_ignored = 0
         num_excluded = 0
+
         for p in Path(self.src).glob("**/*"):
-            if p.is_symlink():
+            if p.is_symlink() or not p.is_file():
                 continue
-            if not p.is_file():
+
+            # Check exclusions
+            if exclude_paths and any(ex in p.absolute().parents for ex in exclude_paths):
+                num_excluded += 1
                 continue
-            if excludes:
-                exc = False
-                for ex in excludes:
-                    if ex in p.absolute().parents:
-                        exc = True
-                        break
-                if exc:
-                    num_excluded += 1
-                    continue
+
+            # Check suffix
             if p.suffix.lower() in suffixes:
-                # relative path
-                out.append(str(p))
+                files.append(str(p))
             else:
                 num_ignored += 1
-        log("collected {} files, {} ignored, {} excluded".format(
-            len(out), num_ignored, num_excluded))
-        with open(self.f_list, 'w') as f:
-            for line in out:
-                f.write(line + "\n")
 
-    def create_tags(self):
+        log(f"collected {len(files)} files, {num_ignored} ignored, {num_excluded} excluded")
+
+        with open(self.f_list, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(files) + '\n')
+
+    def create_tags(self) -> None:
+        """Generate ctags file."""
         log("adding ctags ...")
         if os.path.exists(self.f_tags):
             os.remove(self.f_tags)
         cmd = ['ctags', '--fields=+l', '--links=no', '-L', self.f_list, '-f', self.f_tags]
         sb.call(cmd)
 
-    # 移除 cscope 支持，改用 LSP
-    # def create_cscope(self):
-    #     log("adding cscope ...")
-    #     if os.path.exists(self.f_csdb):
-    #         os.remove(self.f_csdb)
-    #     buf = ''
-    #     with open(self.f_list, 'r') as f:
-    #         for line in f:
-    #             if ' ' in line:
-    #                 line = '"%s"\n' % line[:-1]
-    #             buf += line
-    #     cmd = ['cscope', '-b', '-i', "-", '-f', self.f_csdb]
-    #     try:
-    #         p = sb.Popen(cmd, stdin=sb.PIPE)
-    #         p.communicate(input=buf.encode())
-    #     except KeyboardInterrupt:
-    #         log("user interrupt, cleanning...")
-    #         # TODO: remove n.cscope file
-
 
 class AVIM:
+    """Main application class for managing audit sessions."""
+
     def __init__(self):
+        """Initialize AVIM with workspace and configuration."""
         self.basedir = os.path.dirname(os.path.realpath(__file__))
         self.suffix_file = os.path.join(self.basedir, "suffixes.txt")
         self.index = os.path.join(WORKSPACE, "index.json")
@@ -156,149 +148,161 @@ class AVIM:
             os.mkdir(WORKSPACE)
 
     @property
-    def sessions(self):
-        """
-        {
-            "src": "data_dir",
-            "src2": "data_dir2",
-        }
-        """
+    def sessions(self) -> Dict[str, str]:
+        """Get all audit sessions from index file."""
         if not os.path.exists(self.index):
             return {}
-        with open(self.index, "r") as f:
+        with open(self.index, "r", encoding='utf-8') as f:
             return json.load(f)
 
     @property
-    def suffixes(self):
-        out = set()
-        with open(self.suffix_file, 'r') as f:
+    def suffixes(self) -> List[str]:
+        """Get list of file suffixes to track."""
+        suffixes: Set[str] = set()
+        with open(self.suffix_file, 'r', encoding='utf-8') as f:
             for line in f:
                 ft = line.strip()
-                out.add(ft.lower())
-        return list(out)
+                if ft:
+                    suffixes.add(ft.lower())
+        return list(suffixes)
 
-    def save_sessions(self, sessions):
-        with open(self.index, "w") as f:
+    def save_sessions(self, sessions: Dict[str, str]) -> None:
+        """Save sessions to index file."""
+        with open(self.index, "w", encoding='utf-8') as f:
             json.dump(sessions, f, indent=2)
 
-    def find_project(self, startpoint, sessions):
-        if startpoint == '':
+    def find_project(self, startpoint: str, sessions: Dict[str, str]) -> Optional[Project]:
+        """Find project by recursively searching parent directories."""
+        if not startpoint:
             return None
         p = os.path.abspath(startpoint)
         if p in sessions:
             return Project(p, sessions[p])
         parent = os.path.dirname(p)
         if parent == p:
-            # recursive?
             return None
         return self.find_project(parent, sessions)
 
-    def _read_bookmark(self, filename):
-        count = 0
+    def _read_bookmark(self, filename: str) -> str:
+        """Read bookmark count from file, return '-' if unavailable."""
         if not os.path.exists(filename):
             return '-'
-        with open(filename, 'r') as f:
-            _ = f.readline()
-            line = f.readline()
-        bm_sessions = line.split("=", 1)[1]
-        bm_sessions = ast.literal_eval(bm_sessions)
-        for bms in bm_sessions['default'].values():
-            count += len(bms)
-        return count
+        try:
+            with open(filename, 'r', encoding='utf-8') as f:
+                f.readline()  # Skip first line
+                line = f.readline()
+                if not line:
+                    return '-'
+            bm_sessions = line.split("=", 1)[1]
+            bm_sessions = ast.literal_eval(bm_sessions)
+            count = sum(len(bms) for bms in bm_sessions['default'].values())
+            return count
+        except (IndexError, KeyError, SyntaxError, ValueError):
+            return '-'
 
-    def do_make(self, args):
+    def do_make(self, args: argparse.Namespace) -> None:
+        """Create new audit session for a project."""
         proj = Project(args.src)
         if not os.path.exists(proj.src):
             log("path not exists:", proj.src)
             return
+
         sessions = self.sessions
         if proj.src in sessions:
             log("project existed:", proj.src)
             if not args.force:
                 return
-            # clear old session first
+            # Clear old session first
             self.do_rm(proj.src, sessions[proj.src])
-        # create session (只创建 tags，不创建 cscope)
-        proj.create(self.suffixes, args.excludes, args.tag, cscope=False)
+
+        # Create session with tags
+        proj.create(self.suffixes, args.excludes, args.tag)
         sessions = self.sessions
         sessions[proj.src] = proj.data
         self.save_sessions(sessions)
 
-    def do_rm(self, src: str, sessions=None, is_glob=False):
-        """
-        src: abspath of source tree
-        """
-        matches = []
+    def do_rm(self, src: str, sessions: Optional[Dict[str, str]] = None, is_glob: bool = False) -> None:
+        """Remove audit session(s) by source path or glob pattern."""
         if sessions is None:
             sessions = self.sessions
+
+        # Find matching sessions
         if is_glob:
-            matches.extend(fnmatch.filter(sessions.keys(), src))
+            matches = list(fnmatch.filter(sessions.keys(), src))
         else:
             key = os.path.abspath(src)
-            if key in sessions:
-                matches.append(key)
+            matches = [key] if key in sessions else []
+
         if not matches:
             log(f"not match any sessions: {src}")
             return
+
+        # Remove matched sessions
         for key in matches:
             proj = Project(key, sessions[key])
             proj.remove()
             log("remove session:", proj.src)
             del sessions[proj.src]
+
         self.save_sessions(sessions)
 
-    def do_info(self, args):
+    def do_info(self, args: argparse.Namespace) -> None:
+        """Display information about all audit sessions."""
         sessions = self.sessions
         if not sessions:
             log("No data")
             return
-        # 移除 cscope 列
+
         fields = ['location', 'timestamp', 'files', 'ctags', 'bookmark']
         t = Table(*fields)
         rows = []
+
         for src, data in sessions.items():
             proj = Project(src, data)
+
+            # Apply filter if specified
             if args.filter:
                 lhs, rhs = args.filter, proj.src
                 if args.ignore_case:
                     lhs, rhs = lhs.lower(), rhs.lower()
                 if lhs not in rhs:
                     continue
-            if not os.path.exists(src):
-                src = f"[bold red]{src}[/]"
+
+            # Mark non-existent paths in red
+            display_src = f"[bold red]{src}[/]" if not os.path.exists(src) else src
             timestamp = datetime.fromtimestamp(proj.timestamp)
+
             rows.append([
-                src,
+                display_src,
                 timestamp,
                 _num_lines(proj.f_list),
                 _filesz(proj.f_tags),
-                # _filesz(proj.f_csdb),  # 移除 cscope
                 self._read_bookmark(proj.f_bookmark),
             ])
+
+        # Sort and display
         idx = fields.index(args.sortby)
-        for row in sorted(rows, key = lambda r: r[idx], reverse=True):
+        for row in sorted(rows, key=lambda r: r[idx], reverse=True):
             t.add_row(*[str(col) for col in row])
         CONN.print(t)
 
-    def do_open(self, args):
+    def do_open(self, args: argparse.Namespace) -> None:
+        """Open nvim with project environment configured."""
         sessions = self.sessions
         env = os.environ.copy()
-        # 使用 nvim 而不是 vim
         cmd = ['nvim', '-R', '-M']
-        # 移除 gvim 支持（nvim 不使用 -g 参数）
-        # if args.gui:
-        #     cmd.append('-g')
+
+        # Handle tag or file argument
         if args.tag:
             cmd.extend(['-t', args.tag])
         if args.file:
             cmd.append(args.file)
             fd = os.path.abspath(args.file)
-            if os.path.isdir(fd):
-                startpoint = fd
-            else:
-                startpoint = os.path.dirname(fd)
+            startpoint = fd if os.path.isdir(fd) else os.path.dirname(fd)
         else:
             startpoint = os.getcwd()
+
+        # Find and configure project
         proj = self.find_project(startpoint, sessions)
         if not proj:
             log("project not found:", startpoint)
@@ -306,47 +310,81 @@ class AVIM:
         else:
             env['AVIM_SRC'] = proj.src
             env['AVIM_BOOKMARK'] = proj.f_bookmark
-            # 移除 cscope 支持
-            # if os.path.exists(proj.f_csdb):
-            #     env['AVIM_CSDB'] = proj.f_csdb
             if os.path.exists(proj.f_tags):
-                # use environment to make "nvim -t" work
                 env['AVIM_TAGS'] = proj.f_tags
+
         if args.extra_args:
             cmd.extend(args.extra_args)
         sb.call(cmd, env=env)
 
-def main():
-    parser = argparse.ArgumentParser(description='lightweight code audit system with vim')
-    subparsers = parser.add_subparsers(dest='action', help='sub actions')
 
-    p_add = subparsers.add_parser('make', help='create new audit session from current directory')
-    p_add.add_argument('src', nargs='?', default='.', help='project root directory to make')
-    p_add.add_argument('-t', dest='tag', action='store_true', help='create tag')
-    # 移除 cscope 支持
-    # p_add.add_argument('-c', dest='cscope', action='store_true', help='create cscope')
-    p_add.add_argument('-f', dest='force', action='store_true', help='force overwrite')
-    p_add.add_argument('-e', dest='excludes', nargs='+', help='exclude paths')
+def main() -> None:
+    """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description='Lightweight code audit system with Neovim',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s make -t .              Create audit session for current directory
+  %(prog)s make -t -f ./project   Force recreate session
+  %(prog)s info                   List all sessions
+  %(prog)s info -i android        Filter sessions (case-insensitive)
+  %(prog)s open                   Open nvim in audit mode
+  %(prog)s open MainActivity.java Open specific file
+  %(prog)s rm .                   Remove current session
+  %(prog)s rm -g "*android*"      Remove sessions by pattern
+        """
+    )
+    subparsers = parser.add_subparsers(dest='action', help='Available commands')
 
-    p_rm = subparsers.add_parser('rm', help='remove audit session')
-    p_rm.add_argument('-g', '--glob', action='store_true', help='enable glob match')
-    p_rm.add_argument('src', nargs='*', default=['.'])
+    # make command
+    p_add = subparsers.add_parser(
+        'make',
+        help='Create new audit session from current directory'
+    )
+    p_add.add_argument('src', nargs='?', default='.',
+                      help='Project root directory (default: current directory)')
+    p_add.add_argument('-t', dest='tag', action='store_true',
+                      help='Create ctags index')
+    p_add.add_argument('-f', dest='force', action='store_true',
+                      help='Force overwrite existing session')
+    p_add.add_argument('-e', dest='excludes', nargs='+',
+                      help='Exclude directories from indexing')
 
-    p_info = subparsers.add_parser('info', help='list info of audit sessions',
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p_info.add_argument("-i", dest="ignore_case", action="store_true", help="filter ignore case")
-    p_info.add_argument("filter", nargs="?", help="filter projects by location")
-    p_info.add_argument("-s", dest="sortby", choices=["location", "files", "timestamp"],
-            default="timestamp", help="sort results by column")
+    # rm command
+    p_rm = subparsers.add_parser('rm', help='Remove audit session')
+    p_rm.add_argument('-g', '--glob', action='store_true',
+                     help='Enable glob pattern matching')
+    p_rm.add_argument('src', nargs='*', default=['.'],
+                     help='Session path(s) to remove')
 
-    p_open = subparsers.add_parser('open', help='nvim wrapper to open files')
-    p_open.add_argument('file', nargs="?", help='filename to open')
-    p_open.add_argument('-t', dest='tag', help='open tag')
-    # 移除 gvim 支持
-    # p_open.add_argument('-g', dest='gui', action='store_true', help='use gvim instead of vim')
-    p_open.add_argument("extra_args", nargs="*", help="extra arguments that pass to nvim")
+    # info command
+    p_info = subparsers.add_parser(
+        'info',
+        help='List information about audit sessions',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    p_info.add_argument("-i", dest="ignore_case", action="store_true",
+                       help="Case-insensitive filter")
+    p_info.add_argument("filter", nargs="?",
+                       help="Filter projects by location")
+    p_info.add_argument("-s", dest="sortby",
+                       choices=["location", "files", "timestamp"],
+                       default="timestamp",
+                       help="Sort results by column")
+
+    # open command
+    p_open = subparsers.add_parser('open', help='Open nvim in audit mode')
+    p_open.add_argument('file', nargs="?",
+                       help='File to open')
+    p_open.add_argument('-t', dest='tag',
+                       help='Open file by tag name')
+    p_open.add_argument("extra_args", nargs="*",
+                       help="Extra arguments passed to nvim")
 
     args = parser.parse_args()
+
+    # Execute command
     avim = AVIM()
     if args.action == 'make':
         avim.do_make(args)
@@ -357,6 +395,8 @@ def main():
         avim.do_info(args)
     elif args.action == 'open':
         avim.do_open(args)
+    else:
+        parser.print_help()
 
 
 if __name__ == '__main__':

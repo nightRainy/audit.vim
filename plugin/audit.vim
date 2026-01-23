@@ -80,11 +80,6 @@ endif
 if $AVIM_BOOKMARK != ""
   let g:bookmark_auto_save_file = $AVIM_BOOKMARK
 endif
-
-" augroup vimrc
-"     " open quickfix window if updated
-"     autocmd QuickFixCmdPost * botright copen 12
-" augroup END
 " }}}
 
 " asyncrun.vim shortcuts --- {{{

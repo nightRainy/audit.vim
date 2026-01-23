@@ -1,1 +1,16 @@
 *.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+ENV/
+
+# Editor
+.DS_Store
+
+# Claude temporary files
+.claude/
