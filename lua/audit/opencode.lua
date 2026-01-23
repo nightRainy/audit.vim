@@ -121,7 +121,7 @@ function M.check_cli()
   if vim.fn.executable('opencode') == 0 then
     vim.notify(
       "OpenCode CLI not found. Please install it first:\n" ..
-      "Visit: https://github.com/NickvanDyke/opencode",
+      "Visit: https://github.com/sst/opencode",
       vim.log.levels.WARN
     )
     return false

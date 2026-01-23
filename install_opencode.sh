@@ -176,7 +176,7 @@ if opencode_config.check_cli() then
 
   vim.notify("OpenCode AI 已启用", vim.log.levels.INFO)
 else
-  vim.notify("OpenCode CLI 未安装，请先安装: https://github.com/NickvanDyke/opencode", vim.log.levels.WARN)
+  vim.notify("OpenCode CLI 未安装，请先安装: https://github.com/sst/opencode", vim.log.levels.WARN)
 end
 
 -- 可用快捷键:
@@ -289,7 +289,7 @@ check_opencode_cli() {
         return 0
     else
         log_warning "OpenCode CLI 未安装"
-        log_info "请访问 https://github.com/NickvanDyke/opencode 安装 CLI"
+        log_info "请访问 https://github.com/sst/opencode 安装 CLI"
         return 1
     fi
 }
@@ -406,7 +406,7 @@ main() {
     fi
 
     echo "  3. 如果 OpenCode CLI 未安装，请先安装："
-    echo "     https://github.com/NickvanDyke/opencode"
+    echo "     https://github.com/sst/opencode"
     echo "  4. 启动 OpenCode 服务器："
     echo "     :lua require('audit.opencode').start_server()"
     echo "  5. 开始使用："

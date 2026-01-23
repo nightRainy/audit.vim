@@ -113,7 +113,7 @@ end
    - Linux: sudo apt install universal-ctags ripgrep fzf neovim
 
 3. （可选）安装 OpenCode CLI：
-   访问 https://github.com/NickvanDyke/opencode 获取安装说明
+   访问 https://github.com/sst/opencode 获取安装说明
 
 4. 将本文件的配置内容添加到 ~/.config/nvim/init.lua
 

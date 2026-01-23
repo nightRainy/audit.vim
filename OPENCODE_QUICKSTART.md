@@ -10,7 +10,7 @@
 
 ## 第一步：安装 OpenCode CLI
 
-访问 [OpenCode 官方仓库](https://github.com/NickvanDyke/opencode) 并按照说明安装 CLI。
+访问 [OpenCode 官方仓库](https://github.com/sst/opencode) 并按照说明安装 CLI。
 
 验证安装：
 ```bash

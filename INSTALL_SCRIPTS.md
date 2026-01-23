@@ -54,7 +54,7 @@ cd /path/to/audit.vim
 
 [INFO] 检查 OpenCode CLI...
 [WARNING] OpenCode CLI 未安装
-[INFO] 请访问 https://github.com/NickvanDyke/opencode 安装 CLI
+[INFO] 请访问 https://github.com/sst/opencode 安装 CLI
 
 ==========================================
 [SUCCESS] 安装完成！
@@ -64,7 +64,7 @@ cd /path/to/audit.vim
   1. 重启 Neovim 或运行 :source /Users/username/.config/nvim/init.lua
   2. Lazy.nvim 会自动安装插件
   3. 如果 OpenCode CLI 未安装，请先安装：
-     https://github.com/NickvanDyke/opencode
+     https://github.com/sst/opencode
   4. 启动 OpenCode 服务器：
      :lua require('audit.opencode').start_server()
   5. 开始使用：

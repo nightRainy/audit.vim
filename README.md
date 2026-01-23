@@ -333,7 +333,7 @@ zfa}    create fold inside `{}` (including)
 
 ## OpenCode AI 编程助手（可选）
 
-audit.nvim 现已支持集成 [OpenCode AI](https://github.com/NickvanDyke/opencode) 编程助手，提供智能代码辅助、代码审查、自动优化等功能。
+audit.nvim 现已支持集成 [OpenCode AI](https://github.com/sst/opencode) 编程助手，提供智能代码辅助、代码审查、自动优化等功能。
 
 **🚀 一键安装：** 运行 `./install_opencode.sh` 自动配置（推荐）
 
@@ -347,7 +347,7 @@ audit.nvim 现已支持集成 [OpenCode AI](https://github.com/NickvanDyke/openc
 
 **1. 安装 OpenCode CLI**
 
-访问 [OpenCode 官方仓库](https://github.com/NickvanDyke/opencode) 安装 CLI 工具。
+访问 [OpenCode 官方仓库](https://github.com/sst/opencode) 安装 CLI 工具。
 
 **2. 安装 opencode.nvim 插件**
 
