@@ -327,6 +327,7 @@ main() {
 
     # 3. 检查是否已安装
     log_info "检查是否已安装 opencode..."
+	log_info "config file path is $config_file"
     if check_already_installed "$config_file"; then
         log_warning "OpenCode 配置已存在于配置文件中"
         read -p "是否继续安装？这可能导致重复配置 (y/n): " -n 1 -r
@@ -382,6 +383,7 @@ main() {
 
     # 7. 添加 OpenCode 初始化配置
     log_info "添加 OpenCode 初始化配置..."
+	echo $config_file
     add_opencode_init "$config_file"
 
     # 8. 检查 OpenCode CLI
