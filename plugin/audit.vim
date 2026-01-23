@@ -105,8 +105,9 @@ endif
 " }}}
 
 " asyncrun.vim shortcuts --- {{{
-" 检查 AsyncRun 是否可用
-if exists(':AsyncRun')
+" 延迟检查 AsyncRun，避免过早的警告信息
+function! s:SetupAsyncRun()
+  if exists(':AsyncRun')
   " 自动打开 quickfix 窗口显示 AsyncRun 结果
   let g:asyncrun_open = 12
   nnoremap <leader>q :call asyncrun#quickfix_toggle(12)<CR>
@@ -134,31 +135,35 @@ if exists(':AsyncRun')
     " 搜索方法定义
     nnoremap <silent><F3> :AsyncRun! -errorformat=\%f:\%l:\%c:\%m -cwd=<root> rg --vimgrep " <C-R><C-W>\(.*\) .*\{" <cr>
   endif
-else
-  " AsyncRun 不可用，使用同步命令作为回退
-  echohl WarningMsg
-  echo "audit.vim: AsyncRun 插件未安装，使用同步搜索（可能会阻塞）"
-  echohl None
-
-  nnoremap <leader>q :copen 12<CR>
-  command! -nargs=+ -complete=tag Grep execute 'silent grep! -n' <q-args> '.' | copen
-
-  if has('win32') || has('win64')
-    nnoremap <silent><F2> :execute 'silent grep! -n -r' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
   else
-    " 使用同步 grep 命令
-    nnoremap <silent><F2> :execute 'silent grep! --vimgrep -w' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
-    vnoremap <silent><F2> :execute 'silent grep! --vimgrep' shellescape(VisualSelectedText()) '.'<CR>:copen<CR>
-    " 搜索方法定义
-    nnoremap <silent><F3> :execute 'silent grep! --vimgrep' shellescape(expand('<cword>') . '(.*) .*{') '.'<CR>:copen<CR>
-  endif
+    " AsyncRun 不可用，使用同步命令作为回退
+    " 只在真正需要时才显示警告（用户手动调用时）
+    nnoremap <leader>q :copen 12<CR>
+    command! -nargs=+ -complete=tag Grep execute 'silent grep! -n' <q-args> '.' | copen
 
-  " 设置 grepprg 为 ripgrep
-  if executable('rg')
-    set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case
-    set grepformat=%f:%l:%c:%m
+    if has('win32') || has('win64')
+      nnoremap <silent><F2> :execute 'silent grep! -n -r' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
+    else
+      " 使用同步 grep 命令
+      nnoremap <silent><F2> :execute 'silent grep! --vimgrep -w' shellescape(expand('<cword>')) '.'<CR>:copen<CR>
+      vnoremap <silent><F2> :execute 'silent grep! --vimgrep' shellescape(VisualSelectedText()) '.'<CR>:copen<CR>
+      " 搜索方法定义
+      nnoremap <silent><F3> :execute 'silent grep! --vimgrep' shellescape(expand('<cword>') . '(.*) .*{') '.'<CR>:copen<CR>
+    endif
+
+    " 设置 grepprg 为 ripgrep
+    if executable('rg')
+      set grepprg=rg\ --vimgrep\ --no-heading\ --smart-case
+      set grepformat=%f:%l:%c:%m
+    endif
   endif
-endif
+endfunction
+
+" 延迟到插件加载完成后再配置
+augroup audit_asyncrun_setup
+  autocmd!
+  autocmd VimEnter * call s:SetupAsyncRun()
+augroup END
 """ }}}
 
 " ctags/aerial.nvim 配置 --- {{{
