@@ -45,12 +45,37 @@ function M.setup_lsp_keymaps(bufnr)
   vim.keymap.set('n', ']d', vim.diagnostic.goto_next, opts)
 end
 
+-- 确保特殊 buffer 可修改（用于只读模式）
+function M.ensure_special_buffers_modifiable()
+  vim.api.nvim_create_autocmd({ "BufNew", "BufEnter", "BufWinEnter" }, {
+    pattern = "*",
+    callback = function(args)
+      local bufnr = args.buf
+      local buftype = vim.api.nvim_get_option_value("buftype", { buf = bufnr })
+      local bufname = vim.api.nvim_buf_get_name(bufnr)
+
+      -- 检查是否是特殊 buffer
+      if buftype ~= "" and buftype ~= "acwrite" or
+         bufname:match("^health://") or
+         vim.bo[bufnr].filetype == "checkhealth" then
+        vim.api.nvim_set_option_value("modifiable", true, { buf = bufnr })
+        vim.api.nvim_set_option_value("readonly", false, { buf = bufnr })
+      end
+    end,
+  })
+end
+
 -- 初始化函数
 function M.setup(opts)
   opts = opts or {}
 
   -- 设置 aerial
   M.setup_aerial()
+
+  -- 如果在只读审计模式下，确保特殊 buffer 可修改
+  if vim.env.AVIM_SRC ~= nil and vim.env.AVIM_SRC ~= "" then
+    M.ensure_special_buffers_modifiable()
+  end
 
   -- 设置 LSP on_attach 回调
   local old_on_attach = opts.on_attach

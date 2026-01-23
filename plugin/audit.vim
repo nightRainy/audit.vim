@@ -53,6 +53,28 @@ if $AVIM_SRC != ""
       autocmd!
       set noautochdir
   augroup END
+
+  " 允许特殊 buffer（如 healthcheck）可修改
+  augroup special_buffers
+      autocmd!
+      " 在 buffer 创建时就检查并设置特殊 buffer 为可修改
+      autocmd BufNew,BufNewFile,BufReadPre *
+            \ if expand('<afile>') =~# 'health://' ||
+            \    &buftype ==# 'nofile' ||
+            \    &buftype ==# 'help' ||
+            \    &buftype ==# 'quickfix' ||
+            \    &buftype ==# 'terminal' |
+            \   setlocal modifiable noreadonly |
+            \ endif
+      " checkhealth buffer 必须可修改
+      autocmd FileType checkhealth setlocal modifiable noreadonly
+      " quickfix 和其他特殊窗口也应该可修改
+      autocmd FileType qf setlocal modifiable noreadonly
+      " help、man 等内置文档也应该可以正常浏览
+      autocmd FileType help,man setlocal modifiable noreadonly
+      " 插件窗口（如 aerial、telescope 等）
+      autocmd BufWinEnter * if &buftype != '' && &buftype != 'acwrite' | setlocal modifiable noreadonly | endif
+  augroup END
   " remap JK to navigate quickfix
   nnoremap J :cnext<cr>
   nnoremap K :cprev<cr>
@@ -85,6 +107,8 @@ endif
 " asyncrun.vim shortcuts --- {{{
 " 检查 AsyncRun 是否可用
 if exists(':AsyncRun')
+  " 自动打开 quickfix 窗口显示 AsyncRun 结果
+  let g:asyncrun_open = 12
   nnoremap <leader>q :call asyncrun#quickfix_toggle(12)<CR>
   command! -nargs=+ -complete=tag Grep AsyncRun -cwd=<root> rg "-n" <args>
 
