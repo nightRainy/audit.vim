@@ -335,6 +335,10 @@ zfa}    create fold inside `{}` (including)
 
 audit.nvim 现已支持集成 [OpenCode AI](https://github.com/NickvanDyke/opencode) 编程助手，提供智能代码辅助、代码审查、自动优化等功能。
 
+**📚 快速开始：** 参见 [OPENCODE_QUICKSTART.md](OPENCODE_QUICKSTART.md)
+
+**📖 完整配置示例：** 参见 [example_config.lua](example_config.lua)
+
 ### 安装 OpenCode
 
 **1. 安装 OpenCode CLI**
