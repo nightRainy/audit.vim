@@ -1,16 +1,28 @@
-*.swp
-*.swo
-*~
-
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
 venv/
 ENV/
+env/
 
 # Editor
-.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Claude temporary files
-.claude/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Project specific
+.tags
+.tags.*
+
+# Neovim
+*.log

@@ -547,3 +547,86 @@ vim.api.nvim_create_autocmd("User", {
 [fzf.vim]: https://github.com/junegunn/fzf.vim
 [bookmark]: https://github.com/MattesGroeger/vim-bookmarks
 [modes]: https://gist.github.com/kennypete/1fae2e48f5b0577f9b7b10712cec3212
+
+---
+
+## 📁 项目结构
+
+```
+audit.vim/
+├── README.md                    # 项目主文档
+├── avim.py                      # 主程序：项目索引和管理
+├── Makefile                     # 安装和卸载
+├── example_config.lua           # Neovim 配置示例
+├── suffixes.txt                # 支持的文件后缀列表
+│
+├── docs/                        # 📚 文档
+│   ├── user-guide/             # 用户指南
+│   │   ├── QUICK_DEPLOY.md     # 快速部署指南 ⭐
+│   │   ├── GETTING_STARTED.md  # 入门指南
+│   │   ├── TROUBLESHOOTING.md  # 故障排除
+│   │   └── OPENCODE_QUICKSTART.md  # OpenCode 快速开始
+│   ├── setup/                   # 安装和配置
+│   │   ├── INSTALL.md          # 详细安装指南
+│   │   ├── ANDROID_SETUP.md    # Android 项目配置
+│   │   ├── ANDROID_QUICKSTART.md  # Android 快速开始
+│   │   ├── CLANG_CONFIG.md     # Clang/C++ 配置
+│   │   ├── MACOS_NOTES.md      # macOS 注意事项
+│   │   └── OPENCODE_CLI_INSTALL.md  # OpenCode CLI 安装
+│   ├── features/               # 功能说明
+│   │   ├── ASYNCRUN_FIND_GUIDE.md    # AsyncRun Find 使用指南
+│   │   ├── NVIM_TREE_GUIDE.md        # nvim-tree 使用指南
+│   │   ├── NVIM_TREE_DIAGNOSTICS_FIX.md  # 诊断图标修复
+│   │   ├── QUICKFIX.md               # Quickfix 使用
+│   │   └── TREESITTER_SETUP.md       # Tree-sitter 配置
+│   └── development/            # 开发文档
+│       ├── PORTABILITY.md      # 可移植性说明
+│       └── INSTALL_SCRIPTS.md  # 安装脚本文档
+│
+├── scripts/                     # 🔧 脚本工具
+│   ├── setup/                  # 安装配置
+│   │   ├── install.sh          # Linux/macOS 安装脚本
+│   │   ├── install.ps1         # Windows 安装脚本
+│   │   ├── generate_config.sh  # 自动生成配置 ⭐
+│   │   └── setup_config.sh     # 配置设置
+│   ├── lsp/                    # LSP 服务器
+│   │   ├── install_java_lsp.sh # Java LSP 安装
+│   │   └── setup_clangd.sh     # Clangd 配置
+│   ├── parsers/                # Tree-sitter parsers
+│   │   ├── install_parsers.sh  # 安装 parsers
+│   │   └── install_queries.sh  # 安装 queries
+│   ├── opencode/               # OpenCode AI
+│   │   ├── install_opencode.sh     # 安装 OpenCode
+│   │   └── uninstall_opencode.sh   # 卸载 OpenCode
+│   └── check/                  # 检查工具
+│       ├── check_plugins.sh    # 检查插件状态
+│       └── check_parser.sh     # 检查 parser 状态
+│
+├── plugin/                      # Vim 插件
+│   └── audit.vim               # 主插件文件
+│
+└── lua/                         # Lua 模块
+    ├── audit.lua               # 核心模块
+    └── audit/
+        └── opencode.lua        # OpenCode 集成
+```
+
+### 快速导航
+
+**新手入门**:
+- [快速部署](docs/user-guide/QUICK_DEPLOY.md) ⭐ 推荐从这里开始
+- [入门指南](docs/user-guide/GETTING_STARTED.md)
+- [故障排除](docs/user-guide/TROUBLESHOOTING.md)
+
+**安装配置**:
+- [详细安装](docs/setup/INSTALL.md)
+- [Android 项目](docs/setup/ANDROID_QUICKSTART.md)
+- [C/C++ 项目](docs/setup/CLANG_CONFIG.md)
+
+**功能使用**:
+- [查看所有功能文档](docs/features/)
+
+**开发参考**:
+- [可移植性](docs/development/PORTABILITY.md)
+- [脚本文档](docs/development/INSTALL_SCRIPTS.md)
+
