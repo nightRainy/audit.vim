@@ -447,35 +447,61 @@ configure_nvim_plugins() {
         echo ""
 
     else
-        warn "未检测到插件管理器，将创建基础配置"
+        warn "未检测到插件管理器，自动安装 lazy.nvim..."
 
-        # 创建基础 init.lua
-        local init_lua="$nvim_config/init.lua"
-        if [ ! -f "$init_lua" ]; then
-            cat > "$init_lua" << 'EOF'
--- audit.nvim 基础配置
--- 请先安装插件管理器（推荐 lazy.nvim）
+        local lazypath="$nvim_config/../lazy/lazy.nvim"
+        # For Neovim, data dir is usually ~/.local/share/nvim
+        local nvim_data="${NVIM_DATA_HOME:-$HOME/.local/share/nvim}"
+        local lazy_dir="$nvim_data/lazy/lazy.nvim"
 
--- 如果使用 lazy.nvim，取消下面的注释
--- local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
--- if not vim.loop.fs_stat(lazypath) then
---   vim.fn.system({
---     "git",
---     "clone",
---     "--filter=blob:none",
---     "https://github.com/folke/lazy.nvim.git",
---     "--branch=stable",
---     lazypath,
---   })
--- end
--- vim.opt.rtp:prepend(lazypath)
--- require("lazy").setup("plugins")
-EOF
-            success "已创建基础配置: $init_lua"
+        if [ -d "$lazy_dir" ]; then
+            success "lazy.nvim 已安装: $lazy_dir"
+        else
+            info "正在安装 lazy.nvim 到 $lazy_dir ..."
+            git clone --filter=blob:none https://github.com/folke/lazy.nvim.git "$lazy_dir" --branch=stable
+            success "lazy.nvim 安装完成"
         fi
 
-        info "请安装插件管理器后重新运行安装脚本"
-        info "推荐使用 lazy.nvim: https://github.com/folke/lazy.nvim"
+        # 生成 lazy.nvim 配置
+        local config_file="$nvim_config/lua/plugins/audit.lua"
+        mkdir -p "$nvim_config/lua/plugins"
+
+        if [ -f "$config_file" ]; then
+            warn "配置文件已存在: $config_file"
+            printf "是否覆盖? (y/N): "
+            read -r reply
+            echo
+            if [[ ! "$reply" =~ ^[Yy]$ ]]; then
+                info "跳过插件配置"
+                return
+            fi
+        fi
+
+        generate_lazy_config > "$config_file"
+        success "已生成 lazy.nvim 配置: $config_file"
+
+        # 确保 init.lua 加载 lazy.nvim
+        local init_lua="$nvim_config/init.lua"
+        if [ ! -f "$init_lua" ] || ! grep -q "lazy.nvim" "$init_lua" 2>/dev/null; then
+            cat >> "$init_lua" << 'EOF'
+
+-- lazy.nvim plugin manager
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    "--branch=stable",
+    lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+require("lazy").setup("plugins")
+EOF
+            success "已配置 lazy.nvim 加载器: $init_lua"
+        fi
     fi
 }
 
@@ -504,14 +530,17 @@ show_next_steps() {
 
     local plugin_manager=$(detect_plugin_manager)
     if [ "$plugin_manager" = "lazy.nvim" ]; then
-        echo "   打开 Neovim 后会自动安装插件"
-        echo "   或手动运行: nvim +Lazy"
+        info "正在自动安装插件..."
+        nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+        success "插件安装完成"
     elif [ "$plugin_manager" = "packer.nvim" ]; then
         echo "   nvim +PackerSync"
     elif [ "$plugin_manager" = "vim-plug" ]; then
         echo "   nvim +PlugInstall"
     else
-        echo "   请先安装插件管理器（推荐 lazy.nvim）"
+        info "正在自动安装插件..."
+        nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+        success "插件安装完成"
     fi
 
     echo ""
